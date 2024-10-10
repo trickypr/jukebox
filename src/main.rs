@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     fs::{remove_file, File},
     io::Write,
     net,
@@ -6,7 +7,7 @@ use std::{
 };
 
 use elm_rs::{Elm, ElmDecode};
-use mpd::{error, song::QueuePlace, Client, Id, State, Status};
+use mpd::{error, song::QueuePlace, Client, Id, Query, State, Status, Term};
 use poem::{
     get, handler, http::Method, listener::TcpListener, middleware::Cors, post, web::Json,
     EndpointExt, Route, Server,
@@ -14,16 +15,14 @@ use poem::{
 use serde::Serialize;
 
 const ELM_CONNECTION_RESULT: &str = "
-type ConnectionResultWrapper a
-    = MpdError MpdError
-    | MpdOk a
+type alias ConnectionResultWrapper a = Result MpdError a 
 
 
 connectionResultWrapperDecoder : Json.Decode.Decoder a -> Json.Decode.Decoder (ConnectionResultWrapper a)
 connectionResultWrapperDecoder decoder = 
     Json.Decode.oneOf
-        [ Json.Decode.map MpdError (Json.Decode.field \"MpdError\" (mpdErrorDecoder))
-        , Json.Decode.map MpdOk (Json.Decode.field \"MpdOk\" (decoder))
+        [ Json.Decode.map Err (Json.Decode.field \"MpdError\" (mpdErrorDecoder))
+        , Json.Decode.map Ok (Json.Decode.field \"MpdOk\" (decoder))
         ]
 \n\n";
 
@@ -252,6 +251,129 @@ fn playback_next() -> Json<StatusResponse> {
     })
 }
 
+#[derive(Serialize, Elm, ElmDecode)]
+struct Library {
+    test: String,
+    albums: Vec<LibraryAlbum>,
+}
+
+#[derive(Serialize, Elm, ElmDecode)]
+/// Note: Some of these properties are estimated from the component songs
+struct LibraryAlbum {
+    name: String,
+    artist: Option<String>,
+
+    musicbrainz_artistid: Option<String>,
+    musicbrainz_albumid: Option<String>,
+
+    songs: Vec<Song>,
+}
+
+type LibraryResponse = MpdApi<Library>;
+#[handler]
+fn library() -> Json<LibraryResponse> {
+    result(|| {
+        let mut conn = mpd()?;
+
+        let album_tag = Term::Tag(Cow::from("album".to_string()));
+        let album_names = conn.list(&album_tag, &Query::new())?;
+
+        let album_songs = album_names
+            .into_iter()
+            .map(|album| {
+                let album_tag = Term::Tag(Cow::from("album".to_string()));
+                let mut query = Query::new();
+                query.and(album_tag, album.clone());
+                let songs = conn
+                    .find(&query, None)
+                    .unwrap()
+                    .into_iter()
+                    .map(Song::from_song)
+                    .collect::<Vec<_>>();
+
+                let mut artist = None;
+                let mut musicbrainz_artistid = None;
+                let mut musicbrainz_albumid = None;
+
+                for song in &songs {
+                    if let Some((_, aartist)) =
+                        song.tags.iter().find(|(tag, _)| tag == "AlbumArtist")
+                    {
+                        artist = Some(aartist);
+                    }
+
+                    if let Some((_, artistid)) = song
+                        .tags
+                        .iter()
+                        .find(|(tag, _)| tag == "MUSICBRAINZ_ALBUMARTISTID")
+                    {
+                        musicbrainz_artistid = Some(artistid);
+                    }
+
+                    if let Some((_, albumid)) = song
+                        .tags
+                        .iter()
+                        .find(|(tag, _)| tag == "MUSICBRAINZ_ALBUMID")
+                    {
+                        musicbrainz_albumid = Some(albumid);
+                    }
+                }
+
+                LibraryAlbum {
+                    name: album.clone(),
+                    artist: artist.cloned(),
+
+                    musicbrainz_albumid: musicbrainz_albumid.cloned(),
+                    musicbrainz_artistid: musicbrainz_artistid.cloned(),
+
+                    songs,
+                }
+            })
+            .collect::<Vec<_>>();
+
+        Ok(Library {
+            test: "abc".to_string(),
+            albums: album_songs,
+        })
+    })
+}
+
+#[derive(Serialize, Elm, ElmDecode)]
+struct QueueAdd(String);
+type QueueAddResponse = Json<MpdApi<QueueAdd>>;
+
+#[handler]
+fn playback_queue_song(path: String) -> QueueAddResponse {
+    result(|| {
+        let mut conn = mpd()?;
+        let song = mpd::song::Song {
+            file: path.clone(),
+            name: None,
+            title: None,
+            last_mod: None,
+            artist: None,
+            duration: None,
+            place: None,
+            range: None,
+            tags: vec![],
+        };
+
+        conn.push(song)?;
+
+        Ok(QueueAdd(path.clone()))
+    })
+}
+
+#[handler]
+fn playback_queue_album(name: String) -> QueueAddResponse {
+    result(|| {
+        println!("response = {name}");
+        let mut conn = mpd()?;
+        conn.findadd(Query::new().and(Term::Tag(Cow::from("album")), name.clone()))?;
+        Ok(QueueAdd(name.clone()))
+    })
+}
+
 fn cr_elm<T: Write>(file: &mut T, name: &str, inner: &str) {
     file.write_fmt(format_args!(
         "type alias {name} = ConnectionResultWrapper {inner}\n\n"
@@ -290,7 +412,7 @@ async fn main() -> Result<(), std::io::Error> {
     let mut file = File::create(path)?;
 
     elm_rs::export!("Bindings", &mut file, {
-        decoders: [MpdError, MpdState, Song, QueueSong, MpdSongShot, MpdStatus, Queue]
+        decoders: [MpdError, MpdState, Song, QueueSong, MpdSongShot, MpdStatus, Queue, Library, LibraryAlbum, QueueAdd]
     })
     .unwrap();
 
@@ -299,6 +421,8 @@ async fn main() -> Result<(), std::io::Error> {
 
     cr_elm(&mut file, "StatusResponse", "MpdStatus");
     cr_elm(&mut file, "QueueResponse", "Queue");
+    cr_elm(&mut file, "LibraryResponse", "Library");
+    cr_elm(&mut file, "QueueAddResponse", "QueueAdd");
 
     let app = Route::new()
         .at("/status", get(status))
@@ -306,6 +430,9 @@ async fn main() -> Result<(), std::io::Error> {
         .at("/playback/toggle", post(playback_toggle))
         .at("/playback/prev", post(playback_prev))
         .at("/playback/next", post(playback_next))
+        .at("/library", get(library))
+        .at("/queue/album", post(playback_queue_album))
+        .at("/queue/song", post(playback_queue_song))
         .with(
             Cors::new()
                 .allow_method(Method::GET)

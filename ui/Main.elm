@@ -1,12 +1,13 @@
 module Main exposing (main)
 
-import Bindings exposing (ConnectionResultWrapper(..), MpdError(..), MpdState(..), MpdStatus, Queue(..), QueueResponse, Song, StatusResponse, statusResponseDecoder)
+import Bindings exposing (..)
 import Browser
+import Helpers
 import Heroicons.Outline as Icons
 import Html exposing (Attribute, button, div, h2, img, text)
-import Html.Attributes exposing (attribute, style, width)
+import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
-import Http
+import Http exposing (Error)
 import List exposing (map)
 import Maybe exposing (withDefault)
 import String exposing (fromInt)
@@ -71,17 +72,9 @@ setStatus status model =
 
 handleUpdate : (a -> Model -> Model) -> Model -> Result Http.Error (ConnectionResultWrapper a) -> Cmd Msg -> ( Model, Cmd Msg )
 handleUpdate apply model result successTask =
-    case result of
-        Ok status ->
-            case status of
-                MpdOk value ->
-                    ( apply value model, successTask )
-
-                MpdError err ->
-                    ( Error err, Cmd.none )
-
-        Err _ ->
-            ( Error MpdErrorApi, Cmd.none )
+    result
+        |> Helpers.either (\_ -> Err MpdErrorApi) identity
+        |> Helpers.either (\err -> ( Error err, Cmd.none )) (\value -> ( apply value model, successTask ))
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -147,18 +140,10 @@ view model =
             text "Loading..."
 
         Error err ->
-            case err of
-                MpdErrorApi ->
-                    text "Failed to connect to api"
-
-                MpdErrorConnection ->
-                    text "Failed to find a running mpd instance"
-
-                MpdErrorCommunication ->
-                    text "Invalid message sent from the mpd server"
+            text (Helpers.errorText err)
 
         Status ( status, Queue queue ) ->
-            div [ style "display" "flex", style "gap" "1rem", style "justify-content" "center", style "padding" "16rem" ]
+            div (Helpers.globalStyles ++ [ style "display" "flex", style "gap" "1rem", style "justify-content" "center", style "padding" "16rem" ])
                 [ viewCurrentSong
                     status
                 , div
@@ -188,7 +173,7 @@ viewCurrentSong status =
                 status.currentSong
 
         maybeCoverImage =
-            Maybe.map (\( _, releaseId ) -> "https://coverartarchive.org/release/" ++ releaseId ++ "/front-500") currentSongId
+            Maybe.map (\( _, releaseId ) -> Helpers.albumImage releaseId 500) currentSongId
     in
     div []
         [ -- Albumn art placeholder

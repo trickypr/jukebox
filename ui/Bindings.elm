@@ -224,17 +224,56 @@ queueDecoder =
     Json.Decode.map Queue (Json.Decode.list (songDecoder))
 
 
+type alias Library =
+    { test : String
+    , albums : List (LibraryAlbum)
+    }
 
-type ConnectionResultWrapper a
-    = MpdError MpdError
-    | MpdOk a
+
+libraryDecoder : Json.Decode.Decoder Library
+libraryDecoder =
+    Json.Decode.succeed Library
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "test" (Json.Decode.string)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "albums" (Json.Decode.list (libraryAlbumDecoder))))
+
+
+type alias LibraryAlbum =
+    { name : String
+    , artist : Maybe (String)
+    , musicbrainzArtistid : Maybe (String)
+    , musicbrainzAlbumid : Maybe (String)
+    , songs : List (Song)
+    }
+
+
+libraryAlbumDecoder : Json.Decode.Decoder LibraryAlbum
+libraryAlbumDecoder =
+    Json.Decode.succeed LibraryAlbum
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "name" (Json.Decode.string)))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "artist" (Json.Decode.nullable (Json.Decode.string))))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "musicbrainz_artistid" (Json.Decode.nullable (Json.Decode.string))))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "musicbrainz_albumid" (Json.Decode.nullable (Json.Decode.string))))
+        |> Json.Decode.andThen (\x -> Json.Decode.map x (Json.Decode.field "songs" (Json.Decode.list (songDecoder))))
+
+
+type QueueAdd
+    = QueueAdd (String)
+
+
+queueAddDecoder : Json.Decode.Decoder QueueAdd
+queueAddDecoder =
+    Json.Decode.map QueueAdd (Json.Decode.string)
+
+
+
+type alias ConnectionResultWrapper a = Result MpdError a 
 
 
 connectionResultWrapperDecoder : Json.Decode.Decoder a -> Json.Decode.Decoder (ConnectionResultWrapper a)
 connectionResultWrapperDecoder decoder = 
     Json.Decode.oneOf
-        [ Json.Decode.map MpdError (Json.Decode.field "MpdError" (mpdErrorDecoder))
-        , Json.Decode.map MpdOk (Json.Decode.field "MpdOk" (decoder))
+        [ Json.Decode.map Err (Json.Decode.field "MpdError" (mpdErrorDecoder))
+        , Json.Decode.map Ok (Json.Decode.field "MpdOk" (decoder))
         ]
 
 
@@ -247,4 +286,14 @@ type alias QueueResponse = ConnectionResultWrapper Queue
 
 queueResponseDecoder : Json.Decode.Decoder QueueResponse
 queueResponseDecoder = connectionResultWrapperDecoder queueDecoder
+
+type alias LibraryResponse = ConnectionResultWrapper Library
+
+libraryResponseDecoder : Json.Decode.Decoder LibraryResponse
+libraryResponseDecoder = connectionResultWrapperDecoder libraryDecoder
+
+type alias QueueAddResponse = ConnectionResultWrapper QueueAdd
+
+queueAddResponseDecoder : Json.Decode.Decoder QueueAddResponse
+queueAddResponseDecoder = connectionResultWrapperDecoder queueAddDecoder
 

@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 elm_rs = "0.2.2"
 mpd = { git = "https://github.com/kstep/rust-mpd.git" }
-poem = { version = "3.1.1", features = ["websocket"] }
-serde = { version = "1.0.203", features = ["derive"] }
+poem = { version = "3.1.1", features = ["websocket", "static-files"] }
+serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1.38.0", features = ["rt-multi-thread", "macros"] }
 futures-util = "0.3"

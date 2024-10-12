@@ -2,11 +2,11 @@ module Library exposing (main)
 
 import Bindings exposing (..)
 import Browser
-import Debug exposing (todo)
+import Const exposing (..)
 import Helpers as Helper
 import Heroicons.Outline as Icons
 import Html exposing (..)
-import Html.Attributes exposing (attribute, class, height, src, style)
+import Html.Attributes exposing (class, style)
 import Html.Events exposing (onClick, onMouseDown)
 import Http
 import Maybe exposing (withDefault)
@@ -102,18 +102,21 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
-    case model of
-        Loading ->
-            text "Loading..."
+    div Helper.globalStyles
+        [ Helper.navBar
+        , case model of
+            Loading ->
+                text "Loading..."
 
-        Error err ->
-            text (Helper.errorText err)
+            Error err ->
+                text (Helper.errorText err)
 
-        Lib lib loading openAlbum ->
-            div (Helper.globalStyles ++ [ style "display" "flex", style "height" "100%" ])
-                (viewLibrary lib loading
-                    :: Maybe.withDefault [] (Maybe.map (\album -> [ albumView album ]) openAlbum)
-                )
+            Lib lib loading openAlbum ->
+                div [ style "display" "flex", style "height" "100%", style "overflow" "hidden" ]
+                    (viewLibrary lib loading
+                        :: Maybe.withDefault [] (Maybe.map (\album -> [ albumView album ]) openAlbum)
+                    )
+        ]
 
 
 viewLibrary : Library -> LibraryLoading -> Html Msg
@@ -134,19 +137,19 @@ albumCover { albums } album =
     let
         buttonContent =
             if albums |> List.map (\a -> a.name) |> List.any ((==) album.name) then
-                "Adding..."
+                text "Adding..."
 
             else
-                "Add to queue"
+                Icons.plus [ style "width" "1rem" ]
     in
     div [ onMouseDown (OpenAlbum album), style "display" "flex", style "flex-direction" "column", style "width" "12rem", style "cursor" "pointer" ]
-        [ albumArt album
+        [ Helper.albumArt album.musicbrainzAlbumid "12rem"
         , div [ style "display" "flex", style "width" "100%" ]
             [ div [ style "flex-grow" "1", style "flex-shrink" "1", style "overflow" "hidden" ]
                 [ div [ style "white-space" "nowrap", style "overflow" "hidden", style "text-overflow" "ellipsis", style "width" "100%" ] [ text album.name ]
                 , div [] [ text (withDefault "Unknown artist" album.artist) ]
                 ]
-            , button [ onClick (AddAlbumToQueue album) ] [ Icons.plus [ style "width" "1rem" ] ]
+            , button [ onClick (AddAlbumToQueue album) ] [ buttonContent ]
             ]
         ]
 
@@ -162,7 +165,7 @@ albumView album =
         , class "hidden-sm"
         ]
         [ div [ style "display" "flex", style "gap" "0.5rem" ]
-            [ albumArt album
+            [ Helper.albumArt album.musicbrainzAlbumid "12rem"
             , div []
                 [ div [] [ text album.name ]
                 , div [] [ text (withDefault "Unknown artist" album.artist) ]
@@ -181,35 +184,10 @@ albumView album =
         ]
 
 
-albumArt : LibraryAlbum -> Html msg
-albumArt album =
-    let
-        coverArt =
-            album.musicbrainzAlbumid
-                |> Maybe.map (\id -> Helper.albumImage id 384)
-                |> Maybe.withDefault "todo"
-    in
-    -- We use an object to provide a fallback if the image failed to load
-    object
-        (Helper.containerStyle
-            ++ [ attribute "data" coverArt
-               , attribute "loading" "lazy"
-               , style "width" "12rem"
-               , style "height" "12rem"
-               , style "display" "block"
-               , style "padding" "0"
-               , style "overflow" "hidden"
-               ]
-        )
-        [ div [ style "background-color" (Helper.grey 95), style "width" "100%", style "height" "100%", style "padding" "20%" ]
-            [ Icons.musicalNote [ style "color" (Helper.grey 50) ] ]
-        ]
-
-
 getLibrary : Cmd Msg
 getLibrary =
     Http.get
-        { url = "http://localhost:3000/library"
+        { url = apiServer ++ "/api/library"
         , expect = Http.expectJson LoadLibrary Bindings.libraryResponseDecoder
         }
 
@@ -223,7 +201,7 @@ stateChange query body msg =
     in
     Http.post
         { body = Http.stringBody "application/text" body
-        , url = "http://localhost:3000" ++ query
+        , url = apiServer ++ query
         , expect =
             Http.expectJson handleResponse queueAddResponseDecoder
         }
@@ -231,9 +209,9 @@ stateChange query body msg =
 
 queueAlbum : String -> Cmd Msg
 queueAlbum album =
-    stateChange "/queue/album" album AddedAlbum
+    stateChange "/api/queue/album" album AddedAlbum
 
 
 queueSong : String -> Cmd Msg
 queueSong song =
-    stateChange "/queue/song" song AddedSong
+    stateChange "/api/queue/song" song AddedSong

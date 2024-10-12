@@ -2,8 +2,14 @@
   box-sizing: border-box;
 }
 
+body {
+  margin: 0;
+  height: 100vh;
+}
+
+
 :hover {
-  background-color: var(--hover-bg);
+  background-color: var(--hover-bg) !important;
 }
 
 .last-borderless>*:last-child {

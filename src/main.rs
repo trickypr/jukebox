@@ -10,6 +10,7 @@ use elm_rs::{Elm, ElmDecode};
 use futures_util::SinkExt;
 use mpd::{error, song::QueuePlace, Client, Id, Idle, Query, State, Status, Term};
 use poem::{
+    endpoint::StaticFilesEndpoint,
     get, handler,
     http::Method,
     listener::TcpListener,
@@ -34,7 +35,8 @@ connectionResultWrapperDecoder decoder =
 
 type Mpd = Client<net::TcpStream>;
 pub fn mpd() -> error::Result<Mpd> {
-    Ok(Client::connect("100.109.195.14:6600")?)
+    let url = std::env::var("MPD_ADDRESS").unwrap_or("100.109.195.14:6600".into());
+    Ok(Client::connect(url)?)
 }
 
 #[derive(Serialize, Elm, ElmDecode)]
@@ -431,6 +433,7 @@ fn cr_elm<T: Write>(file: &mut T, name: &str, inner: &str) {
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
+    println!("Creating bindings");
     let path = Path::new("ui/Bindings.elm");
     let _ = remove_file(path);
     let mut file = File::create(path)?;
@@ -448,22 +451,32 @@ async fn main() -> Result<(), std::io::Error> {
     cr_elm(&mut file, "LibraryResponse", "Library");
     cr_elm(&mut file, "QueueAddResponse", "QueueAdd");
 
+    println!("Creating routings");
     let app = Route::new()
-        .at("/status", get(status))
-        .at("/queue", get(queue))
-        .at("/playback/toggle", post(playback_toggle))
-        .at("/playback/prev", post(playback_prev))
-        .at("/playback/next", post(playback_next))
-        .at("/library", get(library))
-        .at("/queue/album", post(playback_queue_album))
-        .at("/queue/song", post(playback_queue_song))
-        .at("/live", get(queue_live))
-        .with(
-            Cors::new()
-                .allow_method(Method::GET)
-                .allow_method(Method::POST),
+        .nest(
+            "/",
+            StaticFilesEndpoint::new("./web/").index_file("index.html"),
+        )
+        .nest(
+            "/api/",
+            Route::new()
+                .at("/status", get(status))
+                .at("/queue", get(queue))
+                .at("/playback/toggle", post(playback_toggle))
+                .at("/playback/prev", post(playback_prev))
+                .at("/playback/next", post(playback_next))
+                .at("/library", get(library))
+                .at("/queue/album", post(playback_queue_album))
+                .at("/queue/song", post(playback_queue_song))
+                .at("/live", get(queue_live))
+                .with(
+                    Cors::new()
+                        .allow_method(Method::GET)
+                        .allow_method(Method::POST),
+                ),
         );
 
+    println!("Starting server");
     Server::new(TcpListener::bind("0.0.0.0:3000"))
         .name("jukebox-api")
         .run(app)

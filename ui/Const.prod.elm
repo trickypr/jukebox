@@ -1,0 +1,5 @@
+module Const exposing (..)
+
+
+apiServer =
+    ""

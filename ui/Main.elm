@@ -2,15 +2,14 @@ port module Main exposing (main)
 
 import Bindings exposing (..)
 import Browser
-import Helpers exposing (containerStyle)
+import Const exposing (..)
+import Helpers exposing (albumArt, globalStyles, listContainerStyle, listItemStyle, navBar, roundButtonStyle)
 import Heroicons.Outline as Icons
-import Html exposing (Attribute, button, div, h2, img, text)
+import Html exposing (Attribute, button, div, h2, li, text, ul)
 import Html.Attributes exposing (attribute, style)
 import Html.Events exposing (onClick)
 import Http exposing (Error)
-import List exposing (map)
 import Maybe exposing (withDefault)
-import String exposing (fromInt)
 import Task
 
 
@@ -144,30 +143,43 @@ subscriptions _ =
 
 view : Model -> Html.Html Msg
 view model =
-    case model of
-        Loading _ ->
-            text "Loading..."
+    div globalStyles
+        [ navBar
+        , case model of
+            Loading _ ->
+                text "Loading..."
 
-        Error err ->
-            text (Helpers.errorText err)
+            Error err ->
+                text (Helpers.errorText err)
 
-        Status ( status, Queue queue ) ->
-            div (Helpers.globalStyles ++ [ style "display" "flex", style "gap" "1rem", style "justify-content" "center", style "padding" "16rem" ])
-                [ viewCurrentSong
-                    status
-                , div
-                    (containerStyle
-                        ++ [ style "min-width" "16rem" ]
-                    )
-                    [ h2 [] [ text "Queue" ]
-                    , case queue of
-                        [] ->
-                            text "empty"
-
-                        _ ->
-                            viewQueue queue (Maybe.map (\song -> song.queueId) status.currentSong)
+            Status ( status, Queue queue ) ->
+                let
+                    currentSongId =
+                        Maybe.map (\song -> song.queueId) status.currentSong
+                in
+                div
+                    [ style "display" "flex"
+                    , style "gap" "1rem"
+                    , style "justify-content" "center"
+                    , style "align-items" "center"
+                    , style "padding" "2rem"
+                    , style "overflow" "hidden"
                     ]
-                ]
+                    [ viewCurrentSong
+                        status
+                    , div
+                        [ style "min-width" "16rem", style "height" "70%", style "display" "flex", style "flex-direction" "column" ]
+                        [ h2 [ style "margin" "0" ] [ text "Queue" ]
+                        , case queue of
+                            [] ->
+                                text "empty"
+
+                            _ ->
+                                ul (listContainerStyle ++ [ style "overflow-y" "scroll", style "height" "100%" ])
+                                    (List.map (queueItem currentSongId) queue)
+                        ]
+                    ]
+        ]
 
 
 viewCurrentSong : MpdStatus -> Html.Html Msg
@@ -177,12 +189,10 @@ viewCurrentSong status =
             List.head (List.filter b a)
 
         currentSongId =
-            Maybe.andThen
-                (\current -> get (\( tag, _ ) -> tag == "MUSICBRAINZ_ALBUMID") current.song.tags)
-                status.currentSong
-
-        maybeCoverImage =
-            Maybe.map (\( _, releaseId ) -> Helpers.albumImage releaseId 500) currentSongId
+            status.currentSong
+                |> Maybe.andThen
+                    (\current -> get (\( tag, _ ) -> tag == "MUSICBRAINZ_ALBUMID") current.song.tags)
+                |> Maybe.map (\( _, releaseId ) -> releaseId)
 
         isDisabled =
             if status.state == Play then
@@ -192,11 +202,7 @@ viewCurrentSong status =
                 [ attribute "disabled" "" ]
     in
     div []
-        [ -- Albumn art placeholder
-          div (containerStyle ++ [ style "width" "24rem", style "height" "24rem", style "padding" "0", style "overflow" "hidden" ])
-            (Maybe.withDefault []
-                (Maybe.map (\source -> [ img [ Html.Attributes.src source, style "width" "100%" ] [] ]) maybeCoverImage)
-            )
+        [ albumArt currentSongId "24rem"
         , withDefault (div [] [])
             (Maybe.map
                 (\currentSong ->
@@ -207,10 +213,10 @@ viewCurrentSong status =
                 )
                 status.currentSong
             )
-        , div []
-            [ button ([ onClick Prev ] ++ isDisabled) [ Icons.chevronLeft [ style "width" "1.5rem", style "height" "1.5rem" ] ]
-            , button [ onClick TogglePlaying ] [ playingIcon status.state [ style "width" "2rem", style "height" "2rem" ] ]
-            , button ([ onClick Next ] ++ isDisabled) [ Icons.chevronRight [ style "width" "1.5rem", style "height" "1.5rem" ] ]
+        , div [ style "display" "flex", style "justify-content" "center", style "align-items" "center", style "gap" "0.5rem" ]
+            [ button (roundButtonStyle ++ [ onClick Prev ] ++ isDisabled) [ Icons.chevronLeft [ style "width" "1.5rem", style "height" "1.5rem" ] ]
+            , button (roundButtonStyle ++ [ onClick TogglePlaying ]) [ playingIcon status.state [ style "width" "2rem", style "height" "2rem" ] ]
+            , button (roundButtonStyle ++ [ onClick Next ] ++ isDisabled) [ Icons.chevronRight [ style "width" "1.5rem", style "height" "1.5rem" ] ]
             ]
         ]
 
@@ -228,22 +234,16 @@ playingIcon state =
             Icons.play
 
 
-viewQueue : List Song -> Maybe Int -> Html.Html msg
-viewQueue songs activeQueueId =
-    div []
-        (map
-            (\song ->
-                div []
-                    [ if song.queueId == activeQueueId then
-                        text "> "
+queueItem : Maybe Int -> Song -> Html.Html msg
+queueItem activeQueueId song =
+    li listItemStyle
+        [ if song.queueId == activeQueueId then
+            text "> "
 
-                      else
-                        text ""
-                    , text (withDefault "Unknown song" song.title)
-                    ]
-            )
-            songs
-        )
+          else
+            text ""
+        , text (withDefault "Unknown song" song.title)
+        ]
 
 
 
@@ -252,19 +252,19 @@ viewQueue songs activeQueueId =
 
 getStatus : Cmd Msg
 getStatus =
-    Http.get { url = "http://localhost:3000/status", expect = Http.expectJson StatusUpdate statusResponseDecoder }
+    Http.get { url = apiServer ++ "/api/status", expect = Http.expectJson StatusUpdate statusResponseDecoder }
 
 
 getQueue : Cmd Msg
 getQueue =
-    Http.get { url = "http://localhost:3000/queue", expect = Http.expectJson QueueUpdate Bindings.queueResponseDecoder }
+    Http.get { url = apiServer ++ "/api/queue", expect = Http.expectJson QueueUpdate Bindings.queueResponseDecoder }
 
 
 stateChange : String -> Cmd Msg
 stateChange query =
     Http.post
         { body = Http.emptyBody
-        , url = "http://localhost:3000" ++ query
+        , url = apiServer ++ "/api" ++ query
         , expect =
             Http.expectJson StatusUpdateNewQueue
                 statusResponseDecoder

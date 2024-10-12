@@ -1,10 +1,8 @@
-import { Elm } from "../../Main.elm";
+import { Elm } from "../Main.elm";
 
 const app = Elm.Main.init({
-  node: document.body,
+  node: document.getElementById("root"),
 });
-
-console.log(app.ports);
 
 const socket = new WebSocket("ws://localhost:3000/live");
 

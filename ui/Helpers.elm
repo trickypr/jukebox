@@ -1,8 +1,9 @@
 module Helpers exposing (..)
 
-import Bindings exposing (MpdError(..))
-import Html
-import Html.Attributes exposing (attribute, class, style)
+import Bindings exposing (LibraryAlbum, MpdError(..))
+import Heroicons.Outline as Icons
+import Html exposing (Html, a, div, nav, object, text)
+import Html.Attributes exposing (attribute, class, href, style)
 
 
 grey : Int -> String
@@ -42,7 +43,78 @@ listItemStyle =
 
 
 globalStyles =
-    [ style "font-family" "sans-serif" ]
+    [ style "font-family" "sans-serif"
+    , style "height" "inherit"
+    , style "display" "flex"
+    , style "flex-direction" "column"
+    , style "overflow" "hidden"
+    ]
+
+
+roundButtonStyle =
+    [ attribute "style" ("--hover-bg:" ++ grey 90)
+    , style "background-color" "white"
+    , style "border" borderStyle
+    , style "border-radius" "100000px"
+    , style "padding" "0.25rem"
+    , style "aspect-ratio" "1/1"
+    , style "border-bottom-width" "0.2rem"
+    , style "overflow" "hidden"
+    , style "cursor" "pointer"
+    ]
+
+
+navItems =
+    [ ( "/", "Player" )
+    , ( "/library/index.html", "Library" )
+    ]
+
+
+navBar : Html msg
+navBar =
+    nav
+        [ style "display" "flex"
+        , style "justify-content" "center"
+        , style "border-bottom" borderStyle
+        ]
+        (List.map
+            (\( path, name ) ->
+                a
+                    [ href path
+                    , attribute "style" ("--hover-bg:" ++ grey 95)
+                    , style "padding" "0.5rem"
+                    , style "color" "black"
+                    , style "text-decoration" "none"
+                    ]
+                    [ text name ]
+            )
+            navItems
+        )
+
+
+albumArt : Maybe String -> String -> Html msg
+albumArt albumId size =
+    let
+        coverArt =
+            albumId
+                |> Maybe.map (\id -> albumImage id 384)
+                |> Maybe.withDefault "todo"
+    in
+    -- We use an object to provide a fallback if the image failed to load
+    object
+        (containerStyle
+            ++ [ attribute "data" coverArt
+               , attribute "loading" "lazy"
+               , style "width" size
+               , style "height" size
+               , style "display" "block"
+               , style "padding" "0"
+               , style "overflow" "hidden"
+               ]
+        )
+        [ div [ style "background-color" (grey 95), style "width" "100%", style "height" "100%", style "padding" "20%" ]
+            [ Icons.musicalNote [ style "color" (grey 50) ] ]
+        ]
 
 
 either : (a -> c) -> (b -> c) -> Result a b -> c

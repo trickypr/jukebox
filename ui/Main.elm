@@ -1,11 +1,11 @@
-module Main exposing (main)
+port module Main exposing (main)
 
 import Bindings exposing (..)
 import Browser
-import Helpers
+import Helpers exposing (containerStyle)
 import Heroicons.Outline as Icons
 import Html exposing (Attribute, button, div, h2, img, text)
-import Html.Attributes exposing (style)
+import Html.Attributes exposing (attribute, style)
 import Html.Events exposing (onClick)
 import Http exposing (Error)
 import List exposing (map)
@@ -21,6 +21,13 @@ main =
 init : () -> ( Model, Cmd Msg )
 init _ =
     ( Loading ( Nothing, Nothing ), Cmd.batch [ getStatus, getQueue ] )
+
+
+
+-- ports
+
+
+port serverUpdate : (String -> msg) -> Sub msg
 
 
 
@@ -42,6 +49,7 @@ type Msg
     | TogglePlaying
     | Next
     | Prev
+    | Noop
 
 
 setQueue : Queue -> Model -> Model
@@ -109,28 +117,29 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
+        Noop ->
+            ( model, Cmd.none )
+
 
 
 -- subscriptions
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
-    Sub.none
+subscriptions _ =
+    serverUpdate
+        (\trigger ->
+            case trigger of
+                "queue" ->
+                    UpdateQueue
+
+                _ ->
+                    Noop
+        )
 
 
 
 -- view
-
-
-grey : Int -> String
-grey lightness =
-    "oklch(" ++ fromInt lightness ++ "% 0.02 91)"
-
-
-containerStyle : List (Html.Attribute msg)
-containerStyle =
-    [ style "padding" "1rem", style "border-radius" "0.75rem", style "border" ("0.125rem solid " ++ grey 80), style "border-bottom-width" "0.25rem" ]
 
 
 view : Model -> Html.Html Msg
@@ -174,6 +183,13 @@ viewCurrentSong status =
 
         maybeCoverImage =
             Maybe.map (\( _, releaseId ) -> Helpers.albumImage releaseId 500) currentSongId
+
+        isDisabled =
+            if status.state == Play then
+                []
+
+            else
+                [ attribute "disabled" "" ]
     in
     div []
         [ -- Albumn art placeholder
@@ -192,9 +208,9 @@ viewCurrentSong status =
                 status.currentSong
             )
         , div []
-            [ button [ onClick Prev ] [ Icons.chevronLeft [ style "width" "1.5rem", style "height" "1.5rem" ] ]
+            [ button ([ onClick Prev ] ++ isDisabled) [ Icons.chevronLeft [ style "width" "1.5rem", style "height" "1.5rem" ] ]
             , button [ onClick TogglePlaying ] [ playingIcon status.state [ style "width" "2rem", style "height" "2rem" ] ]
-            , button [ onClick Next ] [ Icons.chevronRight [ style "width" "1.5rem", style "height" "1.5rem" ] ]
+            , button ([ onClick Next ] ++ isDisabled) [ Icons.chevronRight [ style "width" "1.5rem", style "height" "1.5rem" ] ]
             ]
         ]
 

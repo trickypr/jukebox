@@ -7,10 +7,16 @@ use std::{
 };
 
 use elm_rs::{Elm, ElmDecode};
-use mpd::{error, song::QueuePlace, Client, Id, Query, State, Status, Term};
+use futures_util::SinkExt;
+use mpd::{error, song::QueuePlace, Client, Id, Idle, Query, State, Status, Term};
 use poem::{
-    get, handler, http::Method, listener::TcpListener, middleware::Cors, post, web::Json,
-    EndpointExt, Route, Server,
+    get, handler,
+    http::Method,
+    listener::TcpListener,
+    middleware::Cors,
+    post,
+    web::{websocket::WebSocket, Json},
+    EndpointExt, IntoResponse, Route, Server,
 };
 use serde::Serialize;
 
@@ -28,7 +34,7 @@ connectionResultWrapperDecoder decoder =
 
 type Mpd = Client<net::TcpStream>;
 pub fn mpd() -> error::Result<Mpd> {
-    Ok(Client::connect("127.0.0.1:6600")?)
+    Ok(Client::connect("100.109.195.14:6600")?)
 }
 
 #[derive(Serialize, Elm, ElmDecode)]
@@ -41,6 +47,7 @@ enum MpdError {
 
 impl From<error::Error> for MpdError {
     fn from(value: error::Error) -> Self {
+        println!("converting error = {value}");
         match value {
             error::Error::Io(_) => MpdError::MpdErrorConnection,
             _ => MpdError::MpdErrorCommunication,
@@ -374,6 +381,23 @@ fn playback_queue_album(name: String) -> QueueAddResponse {
     })
 }
 
+#[handler]
+fn queue_live(ws: WebSocket) -> impl IntoResponse {
+    ws.on_upgrade(|mut socket| async move {
+        let mut conn = mpd().unwrap();
+        loop {
+            let _guard = conn.wait(&[mpd::idle::Subsystem::Queue]).unwrap();
+
+            if let Err(_) = socket
+                .send(poem::web::websocket::Message::Text("queue".into()))
+                .await
+            {
+                return;
+            }
+        }
+    })
+}
+
 fn cr_elm<T: Write>(file: &mut T, name: &str, inner: &str) {
     file.write_fmt(format_args!(
         "type alias {name} = ConnectionResultWrapper {inner}\n\n"
@@ -433,6 +457,7 @@ async fn main() -> Result<(), std::io::Error> {
         .at("/library", get(library))
         .at("/queue/album", post(playback_queue_album))
         .at("/queue/song", post(playback_queue_song))
+        .at("/live", get(queue_live))
         .with(
             Cors::new()
                 .allow_method(Method::GET)

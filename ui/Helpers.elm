@@ -1,7 +1,44 @@
 module Helpers exposing (..)
 
 import Bindings exposing (MpdError(..))
-import Html.Attributes exposing (style)
+import Html
+import Html.Attributes exposing (attribute, class, style)
+
+
+grey : Int -> String
+grey lightness =
+    "oklch(" ++ String.fromInt lightness ++ "% 0.02 91)"
+
+
+borderStyle : String
+borderStyle =
+    "0.125rem solid " ++ grey 80
+
+
+containerStyle : List (Html.Attribute msg)
+containerStyle =
+    [ style "padding" "1rem", style "border-radius" "1rem", style "border" borderStyle, style "border-bottom-width" "0.25rem" ]
+
+
+listContainerStyle : List (Html.Attribute msg)
+listContainerStyle =
+    [ style "overflow" "hidden"
+    , style "padding" "0"
+    , style "padding-bottom" "-0.125rem"
+    , style "border" borderStyle
+    , style "border-bottom-width" "0.25rem"
+    , style "border-radius" "2rem"
+    , class "last-borderless"
+    ]
+
+
+listItemStyle : List (Html.Attribute msg)
+listItemStyle =
+    [ attribute "style" ("--hover-bg:" ++ grey 90)
+    , style "padding" "0.5rem 1rem"
+    , style "border-bottom" borderStyle
+    , style "border-bottom-style" "double"
+    ]
 
 
 globalStyles =

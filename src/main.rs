@@ -387,11 +387,19 @@ fn playback_queue_album(name: String) -> QueueAddResponse {
 fn queue_live(ws: WebSocket) -> impl IntoResponse {
     ws.on_upgrade(|mut socket| async move {
         let mut conn = mpd().unwrap();
+
         loop {
             let _guard = conn.wait(&[mpd::idle::Subsystem::Queue]).unwrap();
 
             if let Err(_) = socket
                 .send(poem::web::websocket::Message::Text("queue".into()))
+                .await
+            {
+                return;
+            }
+
+            if let Err(_) = socket
+                .send(poem::web::websocket::Message::Text("status".into()))
                 .await
             {
                 return;

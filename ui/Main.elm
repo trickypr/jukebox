@@ -43,6 +43,7 @@ type Msg
     = StatusUpdate (Result Http.Error StatusResponse)
     | StatusUpdateNewQueue (Result Http.Error StatusResponse)
     | QueueUpdate (Result Http.Error QueueResponse)
+    | UpdateStatus
     | UpdateQueue
     | TryLoad
     | TogglePlaying
@@ -99,6 +100,9 @@ update msg model =
         UpdateQueue ->
             ( model, getQueue )
 
+        UpdateStatus ->
+            ( model, getStatus )
+
         StatusUpdate result ->
             handleUpdate setStatus model result (Task.succeed TryLoad |> Task.perform identity)
 
@@ -131,6 +135,9 @@ subscriptions _ =
             case trigger of
                 "queue" ->
                     UpdateQueue
+
+                "status" ->
+                    UpdateStatus
 
                 _ ->
                     Noop

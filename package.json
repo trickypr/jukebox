@@ -14,5 +14,10 @@
     "vite": "^5.4.8",
     "vite-plugin-elm": "^3.0.1",
     "vite-plugin-mpa": "^1.2.0"
+  },
+  "pnpm": {
+    "patchedDependencies": {
+      "vite-plugin-mpa": "patches/vite-plugin-mpa.patch"
+    }
   }
 }

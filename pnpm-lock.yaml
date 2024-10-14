@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  vite-plugin-mpa:
+    hash: 4zp6oa5ltiwskmdonvm7hacnwa
+    path: patches/vite-plugin-mpa.patch
+
 importers:
 
   .:
@@ -16,7 +21,7 @@ importers:
         version: 3.0.1(vite@5.4.8)
       vite-plugin-mpa:
         specifier: ^1.2.0
-        version: 1.2.0
+        version: 1.2.0(patch_hash=4zp6oa5ltiwskmdonvm7hacnwa)
 
 packages:
 
@@ -942,7 +947,7 @@ snapshots:
       node-elm-compiler: 5.0.6
       vite: 5.4.8
 
-  vite-plugin-mpa@1.2.0:
+  vite-plugin-mpa@1.2.0(patch_hash=4zp6oa5ltiwskmdonvm7hacnwa):
     dependencies:
       connect-history-api-fallback: 1.6.0
       shelljs: 0.8.5

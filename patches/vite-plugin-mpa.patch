@@ -1,0 +1,30 @@
+diff --git a/dist/index.js b/dist/index.js
+index 48c0883a6d61284bf6420848f7cf00cb498aa8ba..a76d974a9d6356245db150b9b2228e42f588194c 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -5226,10 +5226,6 @@ function getMPAIO(root, options) {
+ function getHistoryReWriteRuleList(options) {
+   const {scanDir, scanFile, filename, rewrites} = options;
+   const list = rewrites;
+-  list.push({
+-    from: /^\/$/,
+-    to: `./${scanDir}/index/${filename}`
+-  });
+   const pages = getPagesInfo(options);
+   const pageKeys = Object.keys(pages);
+   pageKeys.sort((a, b) => {
+diff --git a/dist/index.mjs b/dist/index.mjs
+index e51ac295b2f55fd2d9236a30e3751fbb8fea6030..8212c3c406933e1617efe31bf97cfc136210f851 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -5226,10 +5226,6 @@ function getMPAIO(root, options) {
+ function getHistoryReWriteRuleList(options) {
+   const {scanDir, scanFile, filename, rewrites} = options;
+   const list = rewrites;
+-  list.push({
+-    from: /^\/$/,
+-    to: `./${scanDir}/index/${filename}`
+-  });
+   const pages = getPagesInfo(options);
+   const pageKeys = Object.keys(pages);
+   pageKeys.sort((a, b) => {

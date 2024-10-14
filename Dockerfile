@@ -28,7 +28,7 @@ COPY ./package.json ./pnpm-lock.yaml ./
 COPY ./patches/ ./patches/
 RUN pnpm install
 
-COPY ./vite.config.js ./elm.json ./
+COPY ./vite.config.js ./elm.json ./postcss.config.js ./tailwind.config.js ./
 COPY ./ui/ ./ui/
 # Move production constants over
 RUN rm ./ui/Const.elm && mv ./ui/Const.prod.elm ./ui/Const.elm

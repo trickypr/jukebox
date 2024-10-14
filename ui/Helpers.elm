@@ -16,51 +16,36 @@ borderStyle =
     "0.125rem solid " ++ grey 80
 
 
+borderClass =
+    "border-b-2 border-grey-800"
+
+
 containerStyle : List (Html.Attribute msg)
 containerStyle =
-    [ style "padding" "1rem", style "border-radius" "1rem", style "border" borderStyle, style "border-bottom-width" "0.25rem" ]
+    [ class "p-2 rounded-2xl depth"
+    ]
 
 
 listContainerStyle : List (Html.Attribute msg)
 listContainerStyle =
-    [ style "overflow" "hidden"
-    , style "padding" "0"
-    , style "padding-bottom" "-0.125rem"
-    , style "border" borderStyle
-    , style "border-bottom-width" "0.25rem"
-    , style "border-radius" "2rem"
-    , class "last-borderless"
+    [ class "mt-2 depth rounded-3xl overflow-hidden"
     ]
 
 
 listItemStyle : List (Html.Attribute msg)
 listItemStyle =
-    [ attribute "style" ("--hover-bg:" ++ grey 90)
-    , style "padding" "0.5rem 1rem"
-    , style "border-bottom" borderStyle
-    , style "border-bottom-style" "double"
+    [ class "hover:bg-grey-900 px-4 py-2 border-double border-grey-800 border-b-2 last:border-b-none"
     ]
 
 
 globalStyles =
-    [ style "font-family" "sans-serif"
-    , style "height" "inherit"
-    , style "display" "flex"
-    , style "flex-direction" "column"
-    , style "overflow" "hidden"
+    [ style "height" "inherit"
+    , class "flex flex-col overflow-hidden"
     ]
 
 
 roundButtonStyle =
-    [ attribute "style" ("--hover-bg:" ++ grey 90)
-    , style "background-color" "white"
-    , style "border" borderStyle
-    , style "border-radius" "100000px"
-    , style "padding" "0.25rem"
-    , style "aspect-ratio" "1/1"
-    , style "border-bottom-width" "0.2rem"
-    , style "overflow" "hidden"
-    , style "cursor" "pointer"
+    [ class "hover:bg-grey-900 rounded-full p-2 aspect-square overflow-hidden cursor-pointer depth"
     ]
 
 
@@ -73,18 +58,14 @@ navItems =
 navBar : Html msg
 navBar =
     nav
-        [ style "display" "flex"
-        , style "justify-content" "center"
-        , style "border-bottom" borderStyle
+        [ class "flex justify-center"
+        , class borderClass
         ]
         (List.map
             (\( path, name ) ->
                 a
                     [ href path
-                    , attribute "style" ("--hover-bg:" ++ grey 95)
-                    , style "padding" "0.5rem"
-                    , style "color" "black"
-                    , style "text-decoration" "none"
+                    , class "p-2 hover:bg-grey-950"
                     ]
                     [ text name ]
             )
@@ -105,11 +86,8 @@ albumArt albumId size =
         (containerStyle
             ++ [ attribute "data" coverArt
                , attribute "loading" "lazy"
-               , style "width" size
-               , style "height" size
-               , style "display" "block"
-               , style "padding" "0"
-               , style "overflow" "hidden"
+               , class size
+               , class "aspect-square block p-0 overflow-hidden"
                ]
         )
         [ div [ style "background-color" (grey 95), style "width" "100%", style "height" "100%", style "padding" "20%" ]

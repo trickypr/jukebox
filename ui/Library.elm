@@ -122,12 +122,8 @@ view model =
 viewLibrary : Library -> LibraryLoading -> Html Msg
 viewLibrary lib loading =
     div
-        [ style "flex-grow" "1"
-        , style "display" "flex"
-        , style "gap" "1rem"
-        , style "padding" "1rem"
-        , style "flex-wrap" "wrap"
-        , style "overflow" "scroll"
+        [ class "grid gap-4 p-2 overflow-scroll grow"
+        , style "grid-template-columns" "repeat(auto-fill, minmax(12rem, 1fr))"
         ]
         (List.map (albumCover loading) lib.albums)
 
@@ -142,10 +138,10 @@ albumCover { albums } album =
             else
                 Icons.plus [ style "width" "1rem" ]
     in
-    div [ onMouseDown (OpenAlbum album), style "display" "flex", style "flex-direction" "column", style "width" "12rem", style "cursor" "pointer" ]
+    div [ onMouseDown (OpenAlbum album), class "flex flex-col w-full pointer" ]
         [ Helper.albumArt album.musicbrainzAlbumid "12rem"
-        , div [ style "display" "flex", style "width" "100%" ]
-            [ div [ style "flex-grow" "1", style "flex-shrink" "1", style "overflow" "hidden" ]
+        , div [ class "flex w-full" ]
+            [ div [ class "grow shrink overflow-hidden mt-0.5" ]
                 [ div [ style "white-space" "nowrap", style "overflow" "hidden", style "text-overflow" "ellipsis", style "width" "100%" ] [ text album.name ]
                 , div [] [ text (withDefault "Unknown artist" album.artist) ]
                 ]

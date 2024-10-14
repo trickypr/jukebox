@@ -6,7 +6,7 @@ import Const exposing (..)
 import Helpers exposing (albumArt, globalStyles, listContainerStyle, listItemStyle, navBar, roundButtonStyle)
 import Heroicons.Outline as Icons
 import Html exposing (Attribute, button, div, h2, li, text, ul)
-import Html.Attributes exposing (attribute, style)
+import Html.Attributes exposing (attribute, class, style)
 import Html.Events exposing (onClick)
 import Http exposing (Error)
 import Maybe exposing (withDefault)
@@ -165,12 +165,7 @@ view model =
                         Maybe.map (\song -> song.queueId) status.currentSong
                 in
                 div
-                    [ style "display" "flex"
-                    , style "gap" "1rem"
-                    , style "justify-content" "center"
-                    , style "align-items" "center"
-                    , style "padding" "2rem"
-                    , style "overflow" "hidden"
+                    [ class "md:flex flex-col grow gap-4 justify-center items-center p-2 overflow-scroll md:flex-row md:overflow-hidden"
                     ]
                     [ viewCurrentSong
                         status
@@ -209,7 +204,8 @@ viewCurrentSong status =
                 [ attribute "disabled" "" ]
     in
     div []
-        [ albumArt currentSongId "24rem"
+        [ albumArt currentSongId "w-full md:w-64"
+        , div [ class "mt-2" ] []
         , withDefault (div [] [])
             (Maybe.map
                 (\currentSong ->

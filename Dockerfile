@@ -25,6 +25,7 @@ RUN mv elm /usr/local/bin/
 WORKDIR /build
 
 COPY ./package.json ./pnpm-lock.yaml ./
+COPY ./patches/ ./patches/
 RUN pnpm install
 
 COPY ./vite.config.js ./elm.json ./

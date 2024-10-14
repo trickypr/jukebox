@@ -9,6 +9,7 @@ use std::{
 use elm_rs::{Elm, ElmDecode};
 use futures_util::SinkExt;
 use mpd::{error, song::QueuePlace, Client, Id, Idle, Query, State, Status, Term};
+use once_cell::sync::Lazy;
 use poem::{
     endpoint::StaticFilesEndpoint,
     get, handler,
@@ -19,6 +20,8 @@ use poem::{
     web::{websocket::WebSocket, Json},
     EndpointExt, IntoResponse, Route, Server,
 };
+use r2d2::ManageConnection;
+use rayon::prelude::*;
 use serde::Serialize;
 
 const ELM_CONNECTION_RESULT: &str = "
@@ -34,12 +37,43 @@ connectionResultWrapperDecoder decoder =
 \n\n";
 
 type Mpd = Client<net::TcpStream>;
-pub fn mpd() -> error::Result<Mpd> {
-    let url = std::env::var("MPD_ADDRESS").unwrap_or("100.109.195.14:6600".into());
-    Ok(Client::connect(url)?)
+struct MpdContainer();
+
+impl ManageConnection for MpdContainer {
+    type Connection = Mpd;
+    type Error = error::Error;
+
+    fn connect(&self) -> Result<Self::Connection, Self::Error> {
+        let url = std::env::var("MPD_ADDRESS").unwrap_or("100.109.195.14:6600".into());
+        Ok(Client::connect(url)?)
+    }
+
+    fn is_valid(&self, conn: &mut Self::Connection) -> Result<(), Self::Error> {
+        conn.ping()
+    }
+
+    fn has_broken(&self, conn: &mut Self::Connection) -> bool {
+        conn.ping().is_err()
+    }
 }
 
-#[derive(Serialize, Elm, ElmDecode)]
+static MPD_CONNECTIONS: Lazy<r2d2::Pool<MpdContainer>> = Lazy::new(|| {
+    r2d2::Pool::builder()
+        .max_size(30)
+        .min_idle(Some(1))
+        .build(MpdContainer())
+        .unwrap()
+});
+
+fn mpd() -> Result<r2d2::PooledConnection<MpdContainer>, MpdError> {
+    // let url = std::env::var("MPD_ADDRESS").unwrap_or("100.109.195.14:6600".into());
+    // Ok(Client::connect(url)?)
+    MPD_CONNECTIONS
+        .get()
+        .map_err(|_| MpdError::MpdErrorConnection)
+}
+
+#[derive(Serialize, Elm, ElmDecode, Debug)]
 enum MpdError {
     /// Used on the client to represent the API not responding correctly
     MpdErrorApi,
@@ -288,8 +322,9 @@ fn library() -> Json<LibraryResponse> {
         let album_names = conn.list(&album_tag, &Query::new())?;
 
         let album_songs = album_names
-            .into_iter()
+            .par_iter()
             .map(|album| {
+                let mut conn = mpd().unwrap();
                 let album_tag = Term::Tag(Cow::from("album".to_string()));
                 let mut query = Query::new();
                 query.and(album_tag, album.clone());

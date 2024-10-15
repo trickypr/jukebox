@@ -33,7 +33,7 @@ COPY ./ui/ ./ui/
 # Move production constants over
 RUN rm ./ui/Const.elm && mv ./ui/Const.prod.elm ./ui/Const.elm
 # NOTE: We do not regenerate bindings and hope that the developers did that whilst developing
-ENV SERVER=""
+ENV VITE_SERVER="relative"
 RUN pnpm vite build
 
 FROM alpine:latest

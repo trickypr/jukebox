@@ -1,11 +1,3 @@
-use std::{
-    borrow::Cow,
-    fs::{remove_file, File},
-    io::Write,
-    net,
-    path::Path,
-};
-
 use elm_rs::{Elm, ElmDecode};
 use futures_util::SinkExt;
 use mpd::{error, song::QueuePlace, Client, Id, Idle, Query, State, Status, Term};
@@ -23,6 +15,13 @@ use poem::{
 use r2d2::ManageConnection;
 use rayon::prelude::*;
 use serde::Serialize;
+use std::{
+    borrow::Cow,
+    fs::{remove_file, File},
+    io::Write,
+    net,
+    path::Path,
+};
 
 const ELM_CONNECTION_RESULT: &str = "
 type alias ConnectionResultWrapper a = Result MpdError a 
@@ -476,6 +475,8 @@ fn cr_elm<T: Write>(file: &mut T, name: &str, inner: &str) {
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
+    tracing_subscriber::fmt().with_env_filter("trace").init();
+
     println!("Creating bindings");
     let path = Path::new("ui/Bindings.elm");
     let _ = remove_file(path);
